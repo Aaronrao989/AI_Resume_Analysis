@@ -5,7 +5,6 @@ Upload your resume, choose a target role, and optionally paste a job description
 
 👉 Live Demo: llmresumeanalysis.streamlit.app
 ---
-
 ✨ Features
 
 📂 Upload a PDF resume or paste raw text.
