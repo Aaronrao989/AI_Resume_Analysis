@@ -3,8 +3,8 @@
 An interactive web app that helps candidates analyze and improve resumes using LLMs + ATS scoring.
 Upload your resume, choose a target role, and optionally paste a job description — the app will provide section-wise feedback, missing keywords, bullet rewrites, and a tailored professional summary.
 
-👉 Live Demo: llmresumeanalysis.streamlit.app
----
+👉 Live Demo: https://llmresumeanalysis.streamlit.app/
+
 ✨ Features
 
 📂 Upload a PDF resume or paste raw text.
