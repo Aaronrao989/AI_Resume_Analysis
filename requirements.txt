@@ -1,0 +1,36 @@
+# Core
+pandas
+numpy
+scikit-learn
+scipy
+python-dotenv
+pydantic
+tqdm
+matplotlib
+textstat
+
+# LLM / Providers
+openai>=1.40.0
+anthropic>=0.34.0
+mistralai>=0.4.0
+groq
+google-generativeai
+
+# LangChain (optional, light)
+langchain>=0.2.14
+langchain-community>=0.2.12
+
+# PDF / Parsing
+pdfminer.six
+PyMuPDF
+pdfplumber
+beautifulsoup4
+regex
+
+# Streamlit UI
+streamlit>=1.25
+
+# Export
+reportlab
+fpdf
+joblib

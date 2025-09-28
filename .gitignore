@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution/packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Project specific
+app/artifacts/
+artifacts/
+*.npy
+*.pkl
+*.pkl.gz
+*.json
+backup_artifacts/
+tmp/
+
+# Streamlit
+.streamlit/
+.streamlit/secrets.toml
+
+# But allow specific models/artifacts for Git LFS
+!y_positions.npy
+!X_dense.npy
+!vectorizer.pkl
+!role_match_clf.pkl
