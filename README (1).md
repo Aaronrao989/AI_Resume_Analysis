@@ -1,44 +1,92 @@
 # LLM-Powered Resume Reviewer (with ATS-style Scoring)
 
-An end-to-end Python project to review resumes for a specific job role, compare them against job descriptions, provide structured, tailored feedback, and generate an improved version. Includes a Streamlit web UI, training pipeline to build a job-role knowledge base from your CSV, and an ATS-style scoring module.
+An interactive web app that helps candidates analyze and improve resumes using LLMs + ATS scoring.
+Upload your resume, choose a target role, and optionally paste a job description — the app will provide section-wise feedback, missing keywords, bullet rewrites, and a tailored professional summary.
 
+👉 Live Demo: llmresumeanalysis.streamlit.app
 ---
 
-## Features
-- **Upload resume** (PDF or text) or **paste** content.
-- **Target job role** selection; optionally upload/paste a **job description** (JD).
-- **LLM-powered review**: missing skills/keywords, structure, clarity, quantification, tailoring tips, tone suggestions.
-- **ATS-style score** (keyword match, section completeness, formatting checks, readability, achievements density).
-- **Compare resume vs JD**; **highlight strengths & gaps**.
-- **Export improved resume** to PDF.
-- **Track multiple uploads** (session-based; extendable to a DB).
-- **Training pipeline**: builds embeddings index & vocab from your CSV.
-- **Models**: OpenAI/Anthropic/Mistral or local (Sentence-Transformers embeddings + prompt templates).
+✨ Features
+
+📂 Upload a PDF resume or paste raw text.
+🎯 Predict the most relevant job role automatically using ML classifier.
+📊 Compute ATS score based on keywords & required skills.
+🤖 LLM-powered resume feedback:
+1)Section-wise improvements (Summary, Skills, Experience, Education, etc.)
+2)Missing skills/keywords tailored to the role
+3)Rewritten, quantifiable bullet points (STAR format)
+4)Language fixes (conciseness & clarity)
+5)Formatting & readability suggestions
+6)Auto-generated 3-line tailored summary
+☁️ Deployable on Streamlit Cloud with .env API key support.
 
 ---
+🛠️ Tech Stack
 
+Frontend: Streamlit
+ML Role Classifier: Scikit-learn + Joblib (trained on resume datasets)
+LLM Backends Supported:
+OpenAI (gpt-4o-mini / gpt-4)
+Groq (latest LLaMA models)
+Anthropic (Claude models)
+Mistral (Open source LLMs)
+ATS Scoring: Keyword extraction + semantic match
+PDF Parsing: PyMuPDF / pdfminer
+
+---
 ## Project Structure
 ```
-resume_reviewer/
-├─ app/
-│  ├─ app.py                # Streamlit UI
-│  ├─ components/
-│  │  ├─ resume_parser.py   # PDF/text extraction
-│  │  ├─ ats_scoring.py     # ATS-style scoring
-│  │  ├─ jd_index.py        # Knowledge base: embeddings + vocab
-│  │  ├─ llm_review.py      # LLM prompts & orchestration
-│  │  └─ utils.py
-├─ artifacts/               # Saved FAISS index, vocab, models
-├─ data/
-│  └─ sample_jobs.csv       # (placeholder) Your CSV goes here
-├─ notebooks/
-│  └─ training_pipeline.ipynb
-├─ requirements.txt
-└─ README.md
+smart-resume-viewer/
+│── app/
+│   │── app.py                 # Main Streamlit app
+│   │── components/
+│   │   │── llm_review.py       # LLM + ATS logic
+│   │   │── ats_scoring.py      # ATS score calculator
+│   │   │── resume_parser.py    # Extract text from PDF
+│   │   │── utils.py            # Helper functions
+│   │── .env                    # API keys & configs
+│
+│── artifacts/                  # Trained ML artifacts
+│   │── vectorizer.pkl
+│   │── role_match_clf.pkl
+│   │── X_dense.npy
+│   │── y_positions.npy
+│
+│── requirements.txt
+│── README.md
 ```
 
 ---
+🚀 Getting Started (Local Setup)
+1️⃣ Clone the repo
+git clone https://github.com/<your-username>/llm-resume-reviewer.git
+cd llm-resume-reviewer/app
 
+---
+
+2️⃣ Create virtual environment & install dependencies
+python3 -m venv .venv
+source .venv/bin/activate   # Mac/Linux
+.venv\Scripts\activate      # Windows
+
+---
+
+pip install -r requirements.txt
+
+3️⃣ Setup environment variables
+Create a .env file inside app/:
+OPENAI_API_KEY=your_openai_api_key
+MODEL_BACKEND=openai
+MODEL_NAME=gpt-4o-mini
+
+---
+
+4️⃣ Run locally
+streamlit run app.py
+
+---
+
+🔑 You can switch backend to groq, anthropic, or mistral by updating MODEL_BACKEND.
 ## Dataset Format
 Your CSV must be UTF-8 with at least these columns:
 - `job_position`
@@ -51,59 +99,26 @@ Place your CSV at `./data/jobs.csv` (or update paths accordingly).
 
 ---
 
-## Quick Start
+🌐 Deployment
+The app is deployed on Streamlit Cloud:
+👉 llmresumeanalysis.streamlit.app
 
-1) **Install dependencies**
-```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
+Steps to deploy:
+Push your repo to GitHub.
+Connect repo to Streamlit Cloud
+Add your OPENAI_API_KEY in Streamlit Cloud Secrets Manager.
 
-2) **Prepare data**
-- Put your CSV (UTF-8) at `data/jobs.csv`.
+📸 Screenshots
+<img width="3420" height="1976" alt="image" src="https://github.com/user-attachments/assets/08b41d9b-54bd-4829-90ef-031601afc41b" />
 
-3) **Run the training notebook**
-- Open `notebooks/training_pipeline.ipynb` and run all cells.
-- This creates artifacts in `artifacts/`:
-  - `faiss_index.bin`, `faiss_meta.json`: Embedding index of roles/JDs.
-  - `tfidf_job_match.pkl`: TF-IDF matcher to predict closest job role from a resume.
-  - `skills_vocab.json`: Unified skills vocabulary from dataset.
-  - `role_prompts.json`: Per-role prompt skeletons for LLM.
+Feedback & ATS Score
+Deploy & share!
 
-4) **Set API keys (optional)**
-- Create `.env` in project root:
-```
-OPENAI_API_KEY=...
-ANTHROPIC_API_KEY=...
-MISTRAL_API_KEY=...
-MODEL_BACKEND=openai   # or anthropic | mistral
-MODEL_NAME=gpt-4o-mini # example
-```
+🤝 Contributing
+Contributions are welcome!
+Fork the repo
+Create a feature branch
+Submit a PR
 
-5) **Launch the web app**
-```bash
-streamlit run app/app.py
-```
-
-6) **Use the tool**
-- Upload PDF or paste resume text.
-- Select job role and optionally paste JD.
-- Click **Review** to get feedback, ATS score, and an improved version.
-- Export as PDF if desired.
-
----
-
-## Notes on Privacy
-- The app does not upload your files anywhere by default.
-- By default, content is processed in-memory. If you enable cloud LLMs, your content may be sent to the model provider per their terms.
-
----
-
-## Optional: REST API
-You can wrap core logic with FastAPI. Use `llm_review.py` functions inside an endpoint.
-
----
-
-## License
-MIT
+📜 License
+This project is licensed under the MIT License.
