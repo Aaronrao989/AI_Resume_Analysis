@@ -2,6 +2,7 @@ import os, json, re
 from typing import Dict, Any, List, Optional
 import joblib
 import numpy as np
+import streamlit as st
 from dotenv import load_dotenv
 
 # --- Load .env explicitly ---
@@ -39,10 +40,9 @@ from .ats_scoring import ats_score
 # ---------------- BACKEND SETUP ----------------
 def choose_backend():
     """Decide which backend + model to use based on .env variables."""
-    backend = os.getenv("MODEL_BACKEND", "openai").lower()
-    name = os.getenv("MODEL_NAME", "gpt-4o-mini")
+    backend = st.secrets.get("MODEL_BACKEND", "groq").lower()
+    name = st.secrets.get("MODEL_NAME", "llama-3.1-8b-instant")
     return backend, name
-
 
 def call_llm(prompt: str, system: Optional[str] = None) -> str:
     backend, model = choose_backend()
@@ -65,6 +65,8 @@ def call_llm(prompt: str, system: Optional[str] = None) -> str:
         from groq import Groq
         # GROQ_API_KEY = os.getenv("GROQ_API_KEY")
         GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
+        MODEL_BACKEND = st.secrets.get("MODEL_BACKEND", "groq")
+        MODEL_NAME = st.secrets.get("MODEL_NAME", "llama-3.1-8b-instant")
         if not GROQ_API_KEY:
             return "[ERROR] GROQ_API_KEY not set. Cannot call Groq LLM."
         client = Groq(api_key=GROQ_API_KEY)
