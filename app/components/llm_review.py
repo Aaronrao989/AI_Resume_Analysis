@@ -63,7 +63,8 @@ def call_llm(prompt: str, system: Optional[str] = None) -> str:
     # --- Groq ---
     elif backend == "groq":
         from groq import Groq
-        GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        # GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
         if not GROQ_API_KEY:
             return "[ERROR] GROQ_API_KEY not set. Cannot call Groq LLM."
         client = Groq(api_key=GROQ_API_KEY)
