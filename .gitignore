@@ -22,12 +22,6 @@ ENV/
 .DS_Store
 
 # Project specific
-app/artifacts/
-artifacts/
-*.npy
-*.pkl
-*.pkl.gz
-*.json
 backup_artifacts/
 tmp/
 
