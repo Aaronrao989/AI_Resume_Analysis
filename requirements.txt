@@ -34,3 +34,4 @@ streamlit>=1.25
 reportlab
 fpdf
 joblib
+gdown
