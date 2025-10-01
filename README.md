@@ -1,6 +1,7 @@
 # LLM-Powered Resume Reviewer (with ATS-style Scoring)
 
 An interactive web app that helps candidates analyze and improve resumes using LLMs + ATS scoring.
+
 Upload your resume, choose a target role, and optionally paste a job description — the app will provide section-wise feedback, missing keywords, bullet rewrites, and a tailored professional summary.
 
 👉 Live Demo: https://llmresumeanalysis.streamlit.app/
@@ -8,29 +9,51 @@ Upload your resume, choose a target role, and optionally paste a job description
 ✨ Features
 
 📂 Upload a PDF resume or paste raw text.
+
 🎯 Predict the most relevant job role automatically using ML classifier.
+
 📊 Compute ATS score based on keywords & required skills.
+
+
 🤖 LLM-powered resume feedback:
+
 1)Section-wise improvements (Summary, Skills, Experience, Education, etc.)
+
 2)Missing skills/keywords tailored to the role
+
 3)Rewritten, quantifiable bullet points (STAR format)
+
 4)Language fixes (conciseness & clarity)
+
 5)Formatting & readability suggestions
+
 6)Auto-generated 3-line tailored summary
+
+
 ☁️ Deployable on Streamlit Cloud with .env API key support.
+
 
 ---
 🛠️ Tech Stack
 
 Frontend: Streamlit
+
 ML Role Classifier: Scikit-learn + Joblib (trained on resume datasets)
+
 LLM Backends Supported:
+
 OpenAI (gpt-4o-mini / gpt-4)
+
 Groq (latest LLaMA models)
+
 Anthropic (Claude models)
+
 Mistral (Open source LLMs)
+
 ATS Scoring: Keyword extraction + semantic match
+
 PDF Parsing: PyMuPDF / pdfminer
+
 
 ---
 ## Project Structure
@@ -57,15 +80,21 @@ smart-resume-viewer/
 
 ---
 🚀 Getting Started (Local Setup)
+
 1️⃣ Clone the repo
+
 git clone https://github.com/<your-username>/llm-resume-reviewer.git
+
 cd llm-resume-reviewer/app
 
 ---
 
 2️⃣ Create virtual environment & install dependencies
+
 python3 -m venv .venv
+
 source .venv/bin/activate   # Mac/Linux
+
 .venv\Scripts\activate      # Windows
 
 ---
@@ -73,9 +102,13 @@ source .venv/bin/activate   # Mac/Linux
 pip install -r requirements.txt
 
 3️⃣ Setup environment variables
+
 Create a .env file inside app/:
+
 OPENAI_API_KEY=your_openai_api_key
+
 MODEL_BACKEND=openai
+
 MODEL_NAME=gpt-4o-mini
 
 ---
@@ -112,12 +145,15 @@ To solve this, we upload the artifacts to Google Drive and download them at runt
 
 3)Ensures reproducibility, as the app can always fetch the latest artifact version.
 
+
 How it works:
+
 1)Upload your artifacts (vectorizer.pkl, role_match_clf.pkl, X_dense.npy, y_positions.npy, etc.) to a Google Drive folder.
 
 2)Get the shareable link for the folder or a zip file of the artifacts. Make sure the link is set to “Anyone with the link can view”.
 
 3)In llm_review.py, use gdown to download the artifacts at runtime:
+
 
 import os, gdown, zipfile
 
@@ -130,7 +166,9 @@ if not os.path.exists(ART_DIR):
     with zipfile.ZipFile(ZIP_PATH, "r") as zip_ref:
         zip_ref.extractall(".")  # Extract into current directory
         
+        
 4)After extraction, your app will load models and embeddings from the local artifacts/ folder, just like before.
+
 
 Benefits:
 
