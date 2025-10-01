@@ -8,6 +8,7 @@ pydantic
 tqdm
 matplotlib
 textstat
+gdown
 
 # LLM / Providers
 openai>=1.40.0
@@ -34,4 +35,4 @@ streamlit>=1.25
 reportlab
 fpdf
 joblib
-gdown
+
