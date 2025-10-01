@@ -97,7 +97,36 @@ Your CSV must be UTF-8 with at least these columns:
 Place your CSV at `./data/jobs.csv` (or update paths accordingly).
 
 ---
+📦 Handling Large Model Artifacts via Google Drive
+Why we use Google Drive:
+The trained models and embeddings used in this project are large files (~500MB+). Hosting them directly in the repository or on Streamlit Cloud can cause storage and deployment issues.
+To solve this, we upload the artifacts to Google Drive and download them at runtime. This approach:
+1)Reduces repository size and keeps it lightweight.
+2)Allows seamless deployment on Streamlit Cloud without hitting storage limits.
+3)Ensures reproducibility, as the app can always fetch the latest artifact version.
 
+How it works:
+1)Upload your artifacts (vectorizer.pkl, role_match_clf.pkl, X_dense.npy, y_positions.npy, etc.) to a Google Drive folder.
+2)Get the shareable link for the folder or a zip file of the artifacts. Make sure the link is set to “Anyone with the link can view”.
+3)In llm_review.py, use gdown to download the artifacts at runtime:
+import os, gdown, zipfile
+
+ZIP_URL = "YOUR_GOOGLE_DRIVE_ZIP_LINK"
+ZIP_PATH = "artifacts.zip"
+ART_DIR = "artifacts"
+
+if not os.path.exists(ART_DIR):
+    gdown.download(ZIP_URL, ZIP_PATH, quiet=False)
+    with zipfile.ZipFile(ZIP_PATH, "r") as zip_ref:
+        zip_ref.extractall(".")  # Extract into current directory
+4)After extraction, your app will load models and embeddings from the local artifacts/ folder, just like before.
+
+Benefits:
+1)Lightweight repository: No need to push large binaries to GitHub.
+2)Automatic updates: Changing the Drive file updates the app without modifying the repo.
+3)Streamlit Cloud friendly: Avoids deployment failures due to large files.
+
+---
 🌐 Deployment
 The app is deployed on Streamlit Cloud:
 👉 llmresumeanalysis.streamlit.app
