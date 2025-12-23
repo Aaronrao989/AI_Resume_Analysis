@@ -1,584 +1,453 @@
-# import streamlit as st
-# import os, json
-# import pandas as pd
-# from components.resume_parser import extract_text_from_pdf
-# from components.utils import load_json, clean_text
-# from components.llm_review import review_resume, ART_DIR
-# import joblib
-# import numpy as np
-
-# st.set_page_config(page_title="Resume Reviewer", layout="wide")
-
-# st.title("🔎 LLM-Powered Resume Reviewer (ATS-aware)")
-# st.caption("Upload your resume, choose a target role, optionally paste a JD, and get tailored feedback.")
-
-# # --- Load trained classifier to get all roles ---
-# try:
-#     CLF_PATH = os.path.join(ART_DIR, "role_match_clf.pkl")
-#     clf = joblib.load(CLF_PATH)
-#     roles = sorted(clf.classes_)
-#     st.sidebar.success(f"Knowledge base loaded: {len(roles)} roles")
-#     kb_loaded = True
-# except Exception as e:
-#     st.sidebar.error(f"Artifacts missing or cannot load classifier: {e}")
-#     roles = []
-#     kb_loaded = False
-
-# # Optional: load FAISS meta for guidance blobs or skill hints
-# try:
-#     meta = load_json(os.path.join(ART_DIR, "faiss_meta.json"), default=[])
-#     skills_vocab = load_json(os.path.join(ART_DIR, "skills_vocab.json"), default=[])
-#     prompts = load_json(os.path.join(ART_DIR, "role_prompts.json"), default={})
-# except Exception:
-#     meta = []
-#     skills_vocab = []
-#     prompts = {}
-
-# # --- Inputs ---
-# colA, colB = st.columns(2)
-# with colA:
-#     job_role = st.selectbox(
-#         "Target Job Role",
-#         options=roles if roles else ["(Run training first)"]
-#     )
-#     jd_text = st.text_area(
-#         "Paste Job Description (optional)",
-#         height=160,
-#         placeholder="Paste JD here..."
-#     )
-
-# with colB:
-#     up = st.file_uploader(
-#         "Upload Resume (PDF)",
-#         type=["pdf"],
-#         accept_multiple_files=False
-#     )
-#     resume_text = st.text_area(
-#         "...or Paste Resume Text",
-#         height=200,
-#         placeholder="Paste resume here if not uploading PDF..."
-#     )
-
-# # --- Extract PDF if uploaded ---
-# if up is not None:
-#     tmp_path = os.path.join("/tmp", up.name)
-#     with open(tmp_path, "wb") as f:
-#         f.write(up.read())
-#     text, pages = extract_text_from_pdf(tmp_path)
-#     if text:
-#         resume_text = text
-#         st.success(f"Extracted text from PDF ({pages} pages). You can still edit below.")
-#     else:
-#         st.error("Could not extract text from PDF. Paste your resume text instead.")
-
-# st.divider()
-
-# # --- Review button ---
-# if st.button("Review", type="primary"):
-#     if not kb_loaded:
-#         st.error("Artifacts not found. Please run the notebook to build the knowledge base.")
-#     elif not resume_text.strip():
-#         st.error("Provide resume text (upload or paste).")
-#     else:
-#         # Prepare guidance blobs & required skills from FAISS meta (optional)
-#         guidance_blobs = []
-#         required_skills = []
-#         for m in meta:
-#             if m.get("job_position") == job_role:
-#                 guidance_blobs.append(m.get("text", ""))
-#                 required_skills.extend(m.get("skills", []))
-
-#         with st.spinner("Reviewing with LLM + ATS scoring..."):
-#             resp = review_resume(
-#                 resume_text=resume_text,
-#                 guidance_blobs=guidance_blobs,
-#                 jd_text=jd_text
-#             )
-
-#         # --- Display ATS score ---
-#         st.subheader("ATS Score")
-#         st.metric("Overall", f"{resp['ats']['score']:.1f}/100")
-#         st.json(resp["ats"]["detail"], expanded=False)
-
-#         # --- Display LLM feedback ---
-#         st.subheader("LLM Feedback (Raw JSON)")
-#         st.caption("This is the JSON returned by the model. You can post-process to pretty panels.")
-#         st.code(resp["llm_feedback_raw"], language="json")
-
-# st.sidebar.markdown("---")
-# st.sidebar.info(
-#     "**Privacy**: Files are processed in-memory. If you enable cloud LLMs via API keys, model providers may receive your text."
-# )
 import streamlit as st
-import os, json
+import os
 import pandas as pd
-from components.resume_parser import extract_text_from_pdf
-from components.utils import load_json, clean_text
-from components.llm_review import review_resume, ART_DIR
-import joblib
-import numpy as np
 
-# Page config with custom theme
+from components.resume_parser import extract_text_from_pdf
+from components.llm_review import review_resume
+
+# -------------------------------------------------
+# PAGE CONFIG
+# -------------------------------------------------
+
 st.set_page_config(
-    page_title="Resume Reviewer", 
+    page_title="AI Resume Reviewer",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://www.example.com/help',
-        'Report a bug': "https://www.example.com/bug",
-        'About': "# Resume Reviewer\nAI-powered resume analysis tool"
-    }
 )
 
-# Custom CSS for enhanced styling
+# -------------------------------------------------
+# CUSTOM CSS
+# -------------------------------------------------
+
 st.markdown("""
 <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* Import fonts */
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
     
-    /* Global styling */
+    /* Global styles */
     .stApp {
-        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
     }
     
-    /* Header styling */
-    .main-header {
+    /* Main content area */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1400px;
+    }
+    
+    /* Typography */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+    }
+    
+    p, div, span, label {
+        font-family: 'DM Sans', sans-serif !important;
+        color: #e0e0e0 !important;
+    }
+    
+    /* Title styling */
+    h1 {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 3.5rem !important;
+        margin-bottom: 0.5rem !important;
+        letter-spacing: -0.02em;
     }
     
-    .main-title {
-        color: white;
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-align: center;
-    }
-    
-    .main-subtitle {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 1.1rem;
-        text-align: center;
-        font-weight: 300;
-    }
-    
-    /* Card styling */
-    .info-card {
-        background: #34495e;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        border-left: 4px solid #667eea;
-        margin: 1rem 0;
-        color: #ecf0f1;
-    }
-    
-    .success-card {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        margin: 1rem 0;
-        text-align: center;
-        font-weight: 500;
-    }
-    
-    .error-card {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        margin: 1rem 0;
-        text-align: center;
-        font-weight: 500;
-    }
-    
-    /* Input section styling */
-    .input-section {
-        background: #2c3e50;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        border: 1px solid #34495e;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-    
-    .section-title {
-        color: #ecf0f1;
-        font-size: 1.3rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0;
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 25px;
-        padding: 0.7rem 2rem;
-        font-weight: 600;
-        font-size: 1.1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    /* Caption/subtitle */
+    .stApp [data-testid="stCaptionContainer"] {
+        color: #a0a0b0 !important;
+        font-size: 1.1rem !important;
+        margin-bottom: 2rem !important;
     }
     
     /* Sidebar styling */
-    .sidebar-content {
-        background: #2c3e50;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1e1e3f 0%, #2a2a4a 100%);
+        border-right: 1px solid rgba(102, 126, 234, 0.2);
     }
     
-    /* Fix for input labels */
-    .input-section strong {
-        color: #ecf0f1 !important;
-        font-weight: 600;
-        display: block;
-        margin-bottom: 0.5rem;
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #ffffff !important;
     }
     
-    /* Ensure all text in input sections is readable */
-    .input-section * {
-        color: #ecf0f1 !important;
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background: rgba(102, 126, 234, 0.05);
+        border: 2px dashed rgba(102, 126, 234, 0.3);
+        border-radius: 12px;
+        padding: 2rem;
+        transition: all 0.3s ease;
     }
     
-    /* Fix Streamlit default text colors */
-    .stTextArea > label, .stSelectbox > label {
-        color: #ecf0f1 !important;
+    [data-testid="stFileUploader"]:hover {
+        border-color: rgba(102, 126, 234, 0.6);
+        background: rgba(102, 126, 234, 0.08);
     }
     
-    /* Metric cards */
-    .metric-card {
-        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    /* Text areas */
+    .stTextArea textarea {
+        background: rgba(30, 30, 62, 0.6) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+        font-family: 'DM Sans', sans-serif !important;
+        padding: 1rem !important;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: rgba(102, 126, 234, 0.8) !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+    }
+    
+    /* Select boxes */
+    .stSelectbox > div > div {
+        background: rgba(30, 30, 62, 0.6) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+    }
+    
+    /* Buttons */
+    .stButton button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 2rem !important;
+        font-weight: 600 !important;
+        font-size: 1.1rem !important;
+        letter-spacing: 0.02em !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6) !important;
+    }
+    
+    /* Metrics */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
         padding: 1.5rem;
-        border-radius: 15px;
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #b0b0c0 !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #667eea !important;
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        background: rgba(102, 126, 234, 0.1) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+    }
+    
+    /* Success message */
+    .stSuccess {
+        background: rgba(76, 175, 80, 0.15) !important;
+        border: 1px solid rgba(76, 175, 80, 0.4) !important;
+        border-radius: 10px !important;
+        color: #4caf50 !important;
+    }
+    
+    /* Error message */
+    .stError {
+        background: rgba(244, 67, 54, 0.15) !important;
+        border: 1px solid rgba(244, 67, 54, 0.4) !important;
+        border-radius: 10px !important;
+        color: #f44336 !important;
+    }
+    
+    /* Warning message */
+    .stWarning {
+        background: rgba(255, 152, 0, 0.15) !important;
+        border: 1px solid rgba(255, 152, 0, 0.4) !important;
+        border-radius: 10px !important;
+        color: #ff9800 !important;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: rgba(102, 126, 234, 0.08) !important;
+        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: rgba(102, 126, 234, 0.12) !important;
+        border-color: rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    /* Code blocks */
+    .stCodeBlock {
+        background: rgba(15, 15, 30, 0.8) !important;
+        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+        border-radius: 10px !important;
+    }
+    
+    code {
+        font-family: 'JetBrains Mono', monospace !important;
+        color: #a0d5ff !important;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: rgba(102, 126, 234, 0.2) !important;
+        margin: 2rem 0 !important;
+    }
+    
+    /* Column styling for cards */
+    .card-container {
+        background: rgba(30, 30, 62, 0.4);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .card-container:hover {
+        border-color: rgba(102, 126, 234, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #667eea !important;
+    }
+    
+    /* Remove default padding */
+    .element-container {
+        margin-bottom: 1rem;
+    }
+    
+    /* Section headers */
+    .section-header {
+        color: #667eea !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+        margin-top: 2rem !important;
+        margin-bottom: 1rem !important;
+        border-left: 4px solid #667eea;
+        padding-left: 1rem;
+    }
+    
+    /* Footer */
+    footer {
+        color: #6b6b80 !important;
         text-align: center;
-        color: white;
-        margin: 1rem 0;
-        box-shadow: 0 8px 25px rgba(46, 204, 113, 0.3);
-    }
-    
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    
-    .metric-label {
-        font-size: 1.1rem;
-        opacity: 0.9;
-        font-weight: 500;
-    }
-    
-    /* Results section */
-    .results-section {
-        background: #2c3e50;
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-        margin: 2rem 0;
-        border-top: 4px solid #667eea;
-        color: #ecf0f1;
-    }
-    
-    /* Status indicators */
-    .status-success {
-        display: inline-flex;
-        align-items: center;
-        background: #d4edda;
-        color: #155724;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin: 0.5rem;
-    }
-    
-    .status-error {
-        display: inline-flex;
-        align-items: center;
-        background: #f8d7da;
-        color: #721c24;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin: 0.5rem;
-    }
-    
-    /* Loading animation */
-    .loading-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 2rem;
-    }
-    
-    /* Privacy notice */
-    .privacy-notice {
-        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-top: 2rem;
-        font-size: 0.9rem;
-        line-height: 1.4;
-    }
-    
-    /* Divider styling */
-    .custom-divider {
-        height: 2px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        border: none;
-        border-radius: 2px;
-        margin: 2rem 0;
+        padding: 2rem 0;
+        border-top: 1px solid rgba(102, 126, 234, 0.2);
+        margin-top: 3rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Enhanced header
-st.markdown("""
-<div class="main-header">
-    <div class="main-title">🔍 AI Resume Reviewer</div>
-    <div class="main-subtitle">Upload your resume, select a target role, and get instant AI-powered feedback with ATS scoring</div>
-</div>
-""", unsafe_allow_html=True)
+# -------------------------------------------------
+# HEADER
+# -------------------------------------------------
 
-# --- Load trained classifier to get all roles ---
+st.title("🔍 AI Resume Reviewer")
+st.caption("ATS-aware resume analysis with ML role prediction, FAISS knowledge base, and LLM feedback")
+
+# -------------------------------------------------
+# LOAD JOB ROLES FROM CSV
+# -------------------------------------------------
+
+CSV_PATH = "data/job_postings_resume1(in).csv"
+
+roles = ["(Auto-detect from resume)"]
+
 try:
-    CLF_PATH = os.path.join(ART_DIR, "role_match_clf.pkl")
-    clf = joblib.load(CLF_PATH)
-    roles = sorted(clf.classes_)
-    st.sidebar.markdown(f"""
-    <div class="status-success">
-        ✅ Knowledge Base Loaded: {len(roles)} roles
-    </div>
-    """, unsafe_allow_html=True)
-    kb_loaded = True
-except Exception as e:
-    st.sidebar.markdown(f"""
-    <div class="status-error">
-        ❌ Artifacts missing: {str(e)}
-    </div>
-    """, unsafe_allow_html=True)
-    roles = []
-    kb_loaded = False
-
-# Optional: load FAISS meta for guidance blobs or skill hints
-try:
-    meta = load_json(os.path.join(ART_DIR, "faiss_meta.json"), default=[])
-    skills_vocab = load_json(os.path.join(ART_DIR, "skills_vocab.json"), default=[])
-    prompts = load_json(os.path.join(ART_DIR, "role_prompts.json"), default={})
-except Exception:
-    meta = []
-    skills_vocab = []
-    prompts = {}
-
-# --- Enhanced Input Sections ---
-st.markdown('<div class="section-title">📋 Job Configuration</div>', unsafe_allow_html=True)
-
-colA, colB = st.columns(2)
-
-with colA:
-    st.markdown('<div class="input-section">', unsafe_allow_html=True)
-    st.markdown('<strong style="color: #ecf0f1;">🎯 Target Role</strong>', unsafe_allow_html=True)
-    job_role = st.selectbox(
-        "Select your target job role",
-        options=roles if roles else ["(Run training first)"],
-        label_visibility="collapsed"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with colB:
-    st.markdown('<div class="input-section">', unsafe_allow_html=True)
-    st.markdown('<strong style="color: #2c3e50;">📄 Job Description (Optional)</strong>', unsafe_allow_html=True)
-    jd_text = st.text_area(
-        "Paste the job description for better analysis",
-        height=120,
-        placeholder="Paste job description here to get more targeted feedback...",
-        label_visibility="collapsed"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-
-st.markdown('<div class="section-title">📤 Resume Upload</div>', unsafe_allow_html=True)
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.markdown('<div class="input-section">', unsafe_allow_html=True)
-    st.markdown('<strong style="color: #2c3e50;">📁 Upload PDF Resume</strong>', unsafe_allow_html=True)
-    up = st.file_uploader(
-        "Choose a PDF file",
-        type=["pdf"],
-        accept_multiple_files=False,
-        label_visibility="collapsed"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col2:
-    st.markdown('<div class="input-section">', unsafe_allow_html=True)
-    st.markdown('<strong style="color: #2c3e50;">✏️ Or Paste Resume Text</strong>', unsafe_allow_html=True)
-    resume_text = st.text_area(
-        "Paste your resume text here",
-        height=180,
-        placeholder="Paste your resume text here if not uploading a PDF...",
-        label_visibility="collapsed"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Extract PDF if uploaded ---
-if up is not None:
-    tmp_path = os.path.join("/tmp", up.name)
-    with open(tmp_path, "wb") as f:
-        f.write(up.read())
-    text, pages = extract_text_from_pdf(tmp_path)
-    if text:
-        resume_text = text
-        st.markdown(f"""
-        <div class="success-card">
-            ✅ Successfully extracted text from PDF ({pages} pages). You can still edit the text below if needed.
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="error-card">
-            ❌ Could not extract text from PDF. Please paste your resume text manually.
-        </div>
-        """, unsafe_allow_html=True)
-
-st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-
-# --- Enhanced Review button ---
-col_center = st.columns([1, 2, 1])[1]
-with col_center:
-    review_clicked = st.button("🚀 Analyze Resume", type="primary", use_container_width=True)
-
-if review_clicked:
-    if not kb_loaded:
-        st.markdown("""
-        <div class="error-card">
-            ❌ Knowledge base not found. Please run the training notebook to build the knowledge base first.
-        </div>
-        """, unsafe_allow_html=True)
-    elif not resume_text.strip():
-        st.markdown("""
-        <div class="error-card">
-            ❌ Please provide your resume text (either upload a PDF or paste the text).
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        # Prepare guidance blobs & required skills from FAISS meta (optional)
-        guidance_blobs = []
-        required_skills = []
-        for m in meta:
-            if m.get("job_position") == job_role:
-                guidance_blobs.append(m.get("text", ""))
-                required_skills.extend(m.get("skills", []))
-
-        with st.spinner("🤖 AI is analyzing your resume... This may take a few moments."):
-            resp = review_resume(
-                resume_text=resume_text,
-                guidance_blobs=guidance_blobs,
-                jd_text=jd_text
+    df_roles = pd.read_csv(CSV_PATH)
+    for col in ["job_position", "title", "role"]:
+        if col in df_roles.columns:
+            csv_roles = (
+                df_roles[col]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .unique()
+                .tolist()
             )
+            roles.extend(sorted(csv_roles))
+            break
+except Exception as e:
+    st.sidebar.warning("⚠️ Could not load job roles from CSV")
 
-        st.markdown('<div class="results-section">', unsafe_allow_html=True)
-        
-        # --- Enhanced ATS Score Display ---
-        st.markdown('<div class="section-title">📊 ATS Compatibility Score</div>', unsafe_allow_html=True)
-        
-        # Create metric card
-        ats_score = resp['ats']['score']
-        score_color = "#2ecc71" if ats_score >= 80 else "#f39c12" if ats_score >= 60 else "#e74c3c"
-        
-        st.markdown(f"""
-        <div class="metric-card" style="background: linear-gradient(135deg, {score_color} 0%, {score_color}dd 100%);">
-            <div class="metric-value">{ats_score:.1f}/100</div>
-            <div class="metric-label">ATS Compatibility Score</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # ATS Details
-        with st.expander("📋 View Detailed ATS Analysis", expanded=False):
-            st.json(resp["ats"]["detail"])
+# -------------------------------------------------
+# SIDEBAR
+# -------------------------------------------------
 
-        st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-
-        # --- Enhanced LLM Feedback Display ---
-        st.markdown('<div class="section-title">🤖 AI Feedback Analysis</div>', unsafe_allow_html=True)
-        st.caption("Comprehensive AI-generated feedback on your resume")
-        
-        # Display in an expandable code block for better readability
-        with st.expander("📝 View Complete AI Analysis", expanded=True):
-            st.code(resp["llm_feedback_raw"], language="json")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- Enhanced Sidebar ---
 with st.sidebar:
-    st.markdown("""
-    <div class="section-title">ℹ️ How It Works</div>
-    """, unsafe_allow_html=True)
+    st.markdown("### ⚙️ Configuration")
     
-    st.markdown("""
-    <div class="info-card">
-        <strong>1. Upload Resume</strong><br>
-        Upload your PDF resume or paste the text directly
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="info-card">
-        <strong>2. Select Target Role</strong><br>
-        Choose the job role you're applying for
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="info-card">
-        <strong>3. Add Job Description</strong><br>
-        Optionally paste the job description for targeted analysis
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="info-card">
-        <strong>4. Get AI Feedback</strong><br>
-        Receive comprehensive feedback and ATS scoring
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("")
+
+    target_role = st.selectbox(
+        "🎯 Target Job Role",
+        options=roles,
+        index=0,
+        help="Select the role you are applying for, or let the system auto-detect",
+    )
+
+    jd_text = st.text_area(
+        "📄 Job Description (optional)",
+        height=180,
+        placeholder="Paste JD here for more targeted ATS & AI feedback",
+    )
 
     st.markdown("---")
     
-    # Enhanced privacy notice
+    st.markdown("### ℹ️ How it works")
     st.markdown("""
-    <div class="privacy-notice">
-        <strong>🔒 Privacy Notice</strong><br><br>
-        Your files are processed in-memory and not stored permanently. 
-        If cloud LLMs are enabled via API keys, model providers may receive your text for processing.
+    <div style='font-size: 0.9rem; line-height: 1.8;'>
+    • <b>ML prediction</b> identifies your role<br>
+    • <b>Selected role</b> guides feedback<br>
+    • <b>FAISS knowledge</b> base provides skills<br>
+    • <b>ATS score</b> is computed<br>
+    • <b>LLM generates</b> actionable feedback
     </div>
     """, unsafe_allow_html=True)
 
-# Footer
+# -------------------------------------------------
+# MAIN INPUT AREA
+# -------------------------------------------------
+
+st.markdown("")
+st.markdown("### 📝 Upload Your Resume")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    uploaded_file = st.file_uploader(
+        "📄 Upload Resume (PDF)",
+        type=["pdf"],
+    )
+
+with col2:
+    resume_text_input = st.text_area(
+        "✍️ Or paste resume text",
+        height=260,
+        placeholder="Paste resume text here if not uploading PDF",
+    )
+
+resume_text = ""
+
+if uploaded_file is not None:
+    tmp_path = os.path.join("/tmp", uploaded_file.name)
+    with open(tmp_path, "wb") as f:
+        f.write(uploaded_file.read())
+
+    text, pages = extract_text_from_pdf(tmp_path)
+    if text:
+        resume_text = text
+        st.success(f"✅ Extracted text from PDF ({pages} pages)")
+    else:
+        st.error("❌ Could not extract text from PDF")
+
+else:
+    resume_text = resume_text_input
+
+# -------------------------------------------------
+# ANALYZE BUTTON
+# -------------------------------------------------
+
+st.markdown("")
+
+if st.button("🚀 Analyze Resume", type="primary", use_container_width=True):
+    if not resume_text.strip():
+        st.error("⚠️ Please upload a resume or paste resume text.")
+    else:
+        with st.spinner("🔄 Analyzing resume…"):
+            result = review_resume(
+                resume_text=resume_text,
+                guidance_blobs=[],
+                jd_text=jd_text,
+                job_role=None if target_role == "(Auto-detect from resume)" else target_role,
+            )
+
+        # -------------------------------------------------
+        # RESULTS
+        # -------------------------------------------------
+
+        st.markdown("<h2 class='section-header'>📊 Analysis Results</h2>", unsafe_allow_html=True)
+
+        # ---- ATS SCORE ----
+        ats_score = min(100.0, float(result["ats"]["score"]))
+        st.metric("ATS Compatibility Score", f"{ats_score:.1f} / 100")
+
+        with st.expander("_______________📋 View ATS Score Breakdown"):
+            st.json(result["ats"]["detail"])
+
+        st.markdown("")
+        
+        # ---- ROLE ANALYSIS ----
+        st.markdown("<h2 class='section-header'>🎯 Role Analysis</h2>", unsafe_allow_html=True)
+
+        colA, colB, colC = st.columns(3)
+
+        with colA:
+            st.info(f"**Target Role**\n\n{result['target_role']}")
+
+        with colB:
+            st.info(
+                f"**ML Predicted Role**\n\n{result['predicted_role'] or 'N/A'}"
+            )
+
+        with colC:
+            if result.get("llm_used"):
+                st.success("🤖 LLM Active (Groq)")
+            else:
+                st.warning("⚠️ LLM Fallback Mode")
+
+        st.markdown("")
+        
+        # ---- AI FEEDBACK ----
+        st.markdown("<h2 class='section-header'>🤖 AI Feedback</h2>", unsafe_allow_html=True)
+
+        st.code(result["llm_feedback_raw"], language="json")
+
+        # ---- DEBUG INFO (OPTIONAL) ----
+        with st.expander("____________🧪 Debug Information"):
+            st.write("**LLM used:**", result.get("llm_used"))
+            st.write("**Predicted role:**", result.get("predicted_role"))
+            st.write("**Target role:**", result.get("target_role"))
+
+# -------------------------------------------------
+# FOOTER
+# -------------------------------------------------
+
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #7f8c8d; padding: 1rem;">
-    <small>Made with ❤️ using Streamlit • AI-Powered Resume Analysis Tool</small>
+<div style='text-align: center; color: #6b6b80; font-size: 0.9rem; padding: 1rem 0;'>
+    Built with <span style='color: #667eea;'>Streamlit</span> • 
+    <span style='color: #667eea;'>ML</span> • 
+    <span style='color: #667eea;'>FAISS</span> • 
+    <span style='color: #667eea;'>ATS</span> • 
+    <span style='color: #667eea;'>Groq LLM</span>
 </div>
 """, unsafe_allow_html=True)
