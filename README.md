@@ -151,7 +151,7 @@ The trained models and embeddings exceed 500MB, which can cause:
 - Deployment issues on Streamlit Cloud
 - Storage limit problems
 
-### Solution Overview
+### SOLUTION OVERVIEW
 
 By hosting artifacts on Google Drive and downloading them at runtime, we achieve:
 
